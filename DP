@@ -1,0 +1,52 @@
+function sdp
+T=3;
+state=4;
+d=[1,2];
+prod_cost1=0;
+prod_cost2=@(x)3+2*x;
+hold_cost=@(i,x)0.5*(i+x-d(1))+0.5*(i+x-d(2));
+salv_cost1=0;
+salv_cost2=@(i,x)0.5*(i+x-d(1))+0.5*(i+x-d(2));
+
+xx=zeros(T,state);%记录每个阶段每个状态的最优决策
+M=100;
+CC=M*ones(T,state);%记录每个阶段每个状态的累计最优成本
+
+
+for t=T:-1:1
+    for temp_i=1:state
+        i=temp_i-1;
+        if t==1
+            i=1;
+        end
+        minc=M;
+        for x=2-i:4-i
+            if t==3
+                salv_cost=salv_cost2(i,x);CC_next=0;
+            else
+                salv_cost=salv_cost1;CC_next=0.5*CC(t+1,i+x-d(1)+1)+0.5*CC(t+1,i+x-d(2)+1);
+            end
+            if x==0
+                prod_cost=prod_cost1;
+            else
+                prod_cost=prod_cost2(x);
+            end
+            temp_c=prod_cost+hold_cost(i,x)-salv_cost+CC_next;
+            if temp_c<minc
+                minc=temp_c;CC(t,i+1)=minc; xx(t,i+1)=x;
+            end
+        end  
+        if t==1
+            break;
+        end
+    end   
+end
+[eOptimalCost,index]=min(CC(1,:));
+fprintf('optimal expected total cost=%.4f\n',eOptimalCost);
+fprintf('optimal production amount in period 1  =%d\n',xx(1,index));
+end
+————————————————
+
+                            版权声明：本文为博主原创文章，遵循 CC 4.0 BY 版权协议，转载请附上原文出处链接和本声明。
+                        
+原文链接：https://blog.csdn.net/robert_chen1988/article/details/53560475
