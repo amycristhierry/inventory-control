@@ -2,38 +2,48 @@ function sdp
 T=3;
 state=4;
 d=[1,2];
-prod_cost1=0;
-prod_cost2=@(x)3+2*x;
-hold_cost=@(i,x)0.5*(i+x-d(1))+0.5*(i+x-d(2));
-salv_cost1=0;
-salv_cost2=@(i,x)0.5*(i+x-d(1))+0.5*(i+x-d(2));
+prod_cost1=0;                    % 不生产时的固定成本（零成本）
+prod_cost2=@(z)3+2*z;            % 生产时的成本函数：固定成本3 + 可变成本2*z
+hold_cost=@(x,z)0.5*(x+z-d(1))+0.5*(x+z-d(2));  % 库存持有成本计算函数
+salv_cost1=0;                    % 常规阶段的残值成本（无残值）
+salv_cost2=@(x,z)0.5*(x+z-d(1))+0.5*(x+z-d(2)); % 最终阶段的残值收益
 
 xx=zeros(T,state);%记录每个阶段每个状态的最优决策
 M=100;
 CC=M*ones(T,state);%记录每个阶段每个状态的累计最优成本
 
 
-for t=T:-1:1
-    for temp_i=1:state
-        i=temp_i-1;
-        if t==1
-            i=1;
+for t=T:-1:1         % 阶段逆向遍历 (从最后阶段T=3开始)
+    for temp_x=1:state  % 状态遍历 (state=4种状态)
+        x=temp_x-1;     % 将状态索引转换为实际库存值 (0-based)
+        if t==1         % 初始阶段特殊处理
+            x=1;        % 固定初始库存为1
         end
-        minc=M;
-        for x=2-i:4-i
-            if t==3
-                salv_cost=salv_cost2(i,x);CC_next=0;
+        minc=M;  % 初始化当前状态最小成本为极大值（M=100）
+        for z=2-x:4-x  % 遍历所有可行生产量（范围由库存状态决定）
+            % 1. 阶段敏感的成本计算
+            if t==3  % 最后阶段特殊处理
+                salv_cost=salv_cost2(x,z);  % 使用终期残值公式
+                CC_next=0;  % 终止后无未来成本
             else
-                salv_cost=salv_cost1;CC_next=0.5*CC(t+1,i+x-d(1)+1)+0.5*CC(t+1,i+x-d(2)+1);
+                salv_cost=salv_cost1;  % 常规阶段残值
+                % 计算下一阶段期望成本（需求有两种可能）
+                CC_next=0.5*CC(t+1,x+z-d(1)+1)+0.5*CC(t+1,x+z-d(2)+1);
             end
-            if x==0
-                prod_cost=prod_cost1;
+            
+            % 2. 生产决策成本计算
+            if z==0
+                prod_cost=prod_cost1;  % 不生产的固定成本
             else
-                prod_cost=prod_cost2(x);
+                prod_cost=prod_cost2(z);  % 生产的总成本（固定+可变）
             end
-            temp_c=prod_cost+hold_cost(i,x)-salv_cost+CC_next;
-            if temp_c<minc
-                minc=temp_c;CC(t,i+1)=minc; xx(t,i+1)=x;
+            
+            % 3. 最优决策选择
+            temp_c=prod_cost+hold_cost(x,z)-salv_cost+CC_next;  % 总成本计算
+            if temp_c<minc  % 寻找最小成本决策
+                minc=temp_c;  % 更新最小成本
+                CC(t,x+1)=minc;  % 记录当前阶段状态的成本
+                xx(t,x+1)=z;  % 记录最优生产量
             end
         end  
         if t==1
@@ -43,6 +53,5 @@ for t=T:-1:1
 end
 [eOptimalCost,index]=min(CC(1,:));
 fprintf('optimal expected total cost=%.4f\n',eOptimalCost);
-fprintf('optimal production amount in period 1  =%d\n',xx(1,index));
+fprintf('optimal production amount in period 1  =%d\n',xx(1,index)); % z值记录在xx矩阵中
 end
-————————————————
