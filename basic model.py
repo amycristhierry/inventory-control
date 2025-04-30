@@ -11,40 +11,67 @@ def bm(T, B, K, D_t, dprob, delta_t, delta_prob, cu,p_t,s, max_D):
     a_qs = np.zeros((T + 2, B + (T+1)*max_D + 1))  # 创建一个二维数组用于存储最优解 a
 
 
+    # 逆向遍历时间阶段，从 T+1 到 1
     for t in range(T+1, 0, -1):
+        # 遍历当前阶段所有可能的库存状态
         for x in range(B + (t - 1) * max_D + 1):
+            # 将当前循环索引 x 转换为实际的库存水平 ori_x
             ori_x = x - (t - 1) * max_D
+            # 初始化最大价值为负无穷，用于后续比较
             max_value = -np.inf
+            # 初始化最优订购量为 0
             best_qs = 0
+            # 计算当前最大可订购量，取 B 和 B - ori_x 中的较小值
             Q = min(B, B - ori_x)
+            # 遍历所有可能的订购量
             for qs in range(Q + 1):
+                # 初始化数组，用于存储不同 delta 值下的计算结果
                 grid = np.zeros((len(delta_t)))
+                # 初始化数组，用于存储不同需求值下的收益
                 H = np.zeros((len(D_t)))
+                # 初始化数组，用于存储不同 delta 值下的价值
                 vgrid = np.zeros((len(delta_t)))
+                # 初始化二维数组，用于存储不同 delta 和需求组合下的价值
                 value1 = np.zeros((len(delta_t), len(D_t)))
+                # 初始化数组，用于存储不同 delta 值下的期望价值
                 value2 = np.zeros((len(delta_t)))
+                # 遍历所有可能的 delta 值
                 for i, delta in enumerate(delta_t):
+                    # 计算考虑 delta 和 K 后的有效订购量
                     grid[i] = max(qs - delta * K, 0)
+                    # 计算不同 delta 值下的订购成本
                     vgrid[i] = - cu * grid[i]
+                    # 遍历所有可能的需求值
                     for d, D in enumerate(D_t):
+                        # 将需求值转换为整数
                         D = int(D)
+                        # 计算下一阶段的库存水平
                         new_x = t * max_D + ori_x - D + qs
+                        # 计算不同需求值下的收益
                         H[d] = p_t * D - s * max(D - ori_x, 0)
+                        # 从存储最优值的数组中获取下一阶段的价值
                         value1[i][d] = v[t + 1][new_x]
+                    # 计算不同 delta 值下的期望价值
                     value2[i] = np.sum(value1[i] * dprob)
+                # 计算总的期望价值
                 value = np.sum(value2 * delta_prob)
+                # 计算不同 delta 值下订购成本的期望
                 Egrid = np.sum(vgrid * delta_prob)
+                # 计算不同需求值下收益的期望
                 EH = np.sum(H * dprob)
+                # 计算当前订购量下的总价值
                 new_value = Egrid + EH + value
 
+                # 如果当前总价值大于等于最大价值，则更新最大价值和最优订购量
                 if new_value >= max_value:
                     max_value = new_value
                     best_qs = qs
+            # 记录当前阶段和库存状态下的最大价值，保留 100 位小数
             v[t][x] = round(max_value, 100)
+            # 记录当前阶段和库存状态下的最优订购量
             a_qs[t][x] = best_qs
 
-
-
+    # 返回存储最优值和最优订购量的二维数组
     return v, a_qs
 
 
