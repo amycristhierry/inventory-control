@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 from scipy.stats import norm
+from scipy.integrate import quad
 
 # 记录代码开始运行的时间，用于后续计算代码运行耗时
 start_time = time.time()
@@ -44,6 +45,10 @@ def demand_sample():
     # 从正态分布中采样一个值，四舍五入取整，确保需求非负
     return max(0, int(np.round(np.random.normal(mu, sigma))))
 
+# 定义需求的概率密度函数
+def demand_pdf(d):
+    return norm.pdf(d, loc=mu, scale=sigma)
+
 def reward(x, z, d):
     """计算即时奖励"""
     # 计算下一阶段的库存水平
@@ -57,6 +62,12 @@ def reward(x, z, d):
     # 即时奖励为负的总成本
     return -(holding_cost + shortage_cost + ordering_cost)
 
+def expected_reward(x, z):
+    """通过积分计算期望奖励"""
+    integrand = lambda d: reward(x, z, d) * demand_pdf(d)
+    result, _ = quad(integrand, 0, np.inf)
+    return result
+
 # 动态规划逆向递推，从倒数第二期（T - 1）开始，到第 0 期结束
 for t in range(T - 1, -1, -1):
     # 遍历所有可能的库存状态
@@ -67,22 +78,8 @@ for t in range(T - 1, -1, -1):
         best_action = 0
         # 遍历行动空间中的每一个可能的订购量 z
         for z in action_space:
-            # 初始化平均总价值为 0，用于累加每次采样得到的平均奖励与下一阶段平均价值之和
-            total_value = 0
-            # 进行 NUM_SAMPLES 次蒙特卡洛采样
-            for _ in range(NUM_SAMPLES):
-                # 调用 demand_sample 函数，生成一个符合正态分布的整数需求样本
-                d = demand_sample()  # 采样需求
-                # 计算在当前库存 x、订购量 z 和需求 d 下，下一阶段的库存水平
-                next_x = x + z - d
-                # 找到状态空间中与下一阶段库存水平 next_x 最接近的状态的索引
-                next_i = np.abs(state_space - next_x).argmin()
-                # 调用 reward 函数，计算当前库存 x、订购量 z 和需求 d 对应的即时奖励
-                r = reward(x, z, d)
-                # 从值函数 V 中获取下一阶段（t + 1 期）对应状态索引 next_i 的价值
-                v_next = V[t + 1, next_i]
-                # 将即时奖励 r 和下一阶段的价值 v_next 累加到平均总价值 total_value 中，同时除以 NUM_SAMPLES
-                total_value += (r + v_next) / NUM_SAMPLES
+            # 计算期望奖励
+            total_value = expected_reward(x, z) + V[t + 1, np.abs(state_space - (x + z - mu)).argmin()]
             # 直接比较 total_value 与 max_value
             if total_value > max_value:
                 # 更新最大价值
