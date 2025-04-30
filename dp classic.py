@@ -14,7 +14,6 @@ sigma = 2  # 需求服从正态分布的标准差，反映需求的波动程度
 h = 1  # 单位库存持有成本，即每单位库存每期需要支付的存储费用
 p = 5  # 单位缺货成本，即每短缺一单位产品需要支付的额外费用
 c = 2  # 单位订购成本，即每订购一单位产品需要支付的费用
-NUM_SAMPLES = 2000  # 蒙特卡洛采样次数，用于估计期望价值
 
 # 确定状态空间的边界，状态空间表示所有可能的库存水平
 k = 2  # 安全系数，用于确定状态空间的范围
@@ -39,11 +38,6 @@ print(f"行动空间: {action_space}")
 V = np.zeros((T + 1, len(state_space)))
 # 策略函数 policy 记录每个阶段和状态下的最优行动（订购量）
 policy = np.zeros((T, len(state_space)), dtype=int)
-
-def demand_sample():
-    """生成符合正态分布的整数需求样本"""
-    # 从正态分布中采样一个值，四舍五入取整，确保需求非负
-    return max(0, int(np.round(np.random.normal(mu, sigma))))
 
 # 定义需求的概率密度函数
 def demand_pdf(d):
