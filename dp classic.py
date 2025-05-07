@@ -56,9 +56,17 @@ def reward(x, z, d):
     # 即时奖励为负的总成本
     return -(holding_cost + shortage_cost + ordering_cost)
 
-def expected_reward(x, z):
-    """通过积分计算期望奖励"""
-    integrand = lambda d: reward(x, z, d) * demand_pdf(d)
+def expected_reward(x, z, t):
+    """通过积分计算期望奖励和下一阶段的值函数"""
+    def integrand(d):
+        # 计算即时奖励
+        r = reward(x, z, d)
+        # 计算下一阶段的库存水平
+        next_x = x + z - d
+        # 找到最接近的状态索引
+        next_i = np.abs(state_space - next_x).argmin()
+        # 加上下一阶段的值函数
+        return (r + V[t + 1, next_i]) * demand_pdf(d)
     result, _ = quad(integrand, 0, np.inf)
     return result
 
@@ -72,8 +80,8 @@ for t in range(T - 1, -1, -1):
         best_action = 0
         # 遍历行动空间中的每一个可能的订购量 z
         for z in action_space:
-            # 计算期望奖励
-            total_value = expected_reward(x, z) + V[t + 1, np.abs(state_space - (x + z - mu)).argmin()]
+            # 计算期望奖励和下一阶段的值函数
+            total_value = expected_reward(x, z, t)
             # 直接比较 total_value 与 max_value
             if total_value > max_value:
                 # 更新最大价值
